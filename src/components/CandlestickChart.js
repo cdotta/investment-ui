@@ -55,7 +55,13 @@ export function CandlestickChart({ data }) {
 
   return (
     <div>
-      <Plot data={[plotlyData]} layout={layout} config={{ responsive: true }} />
+      <Plot
+        data={[plotlyData]}
+        layout={layout}
+        config={{ responsive: true }}
+        style={{ width: '100%', height: '100%' }}
+        onHover={(event) => console.log(event)}
+      />
     </div>
   );
 }
