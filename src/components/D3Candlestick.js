@@ -73,51 +73,95 @@ export function D3Candlestick({ data: originalData }) {
 
       const temp = chartAreaRef.current
         .selectAll('.candle')
-        .data(originalData, (d) => getClose(d) - getOpen(d));
-
-      const candles = temp
-        .enter()
-        .append('g')
-        .classed('candle', true)
-        .merge(temp)
-        .attr('transform', (d) => {
-          const x = timeScale(getOpenTime(d)) - candleWidth / 2;
-          const y = priceScale(Math.max(getOpen(d), getClose(d)));
-
-          return `translate(${x}, ${y})`;
+        .data(originalData, (d, index) => {
+          const id = `${getOpenTime(d)}[${index}]`;
+          console.log(id);
+          return id;
         });
 
-      temp.exit().remove();
+      temp.join(
+        (enter) => {
+          const candles = enter
+            .append('g')
+            .classed('candle', true)
+            .attr('transform', (d) => {
+              const x = timeScale(getOpenTime(d)) - candleWidth / 2;
+              const y = priceScale(Math.max(getOpen(d), getClose(d)));
 
-      candles
-        .append('rect')
-        .merge(temp)
-        .attr('width', 5)
-        .attr('height', (d) => {
-          const candleHeight = Math.abs(
-            priceScale(getClose(d)) - priceScale(getOpen(d))
-          );
-          return candleHeight;
-        })
-        .attr('fill', (d) => (getOpen(d) > getClose(d) ? 'red' : 'green'));
+              return `translate(${x}, ${y})`;
+            });
+          candles
+            .append('rect')
+            .attr('width', 5)
+            .attr('height', (d) => {
+              const candleHeight = Math.abs(
+                priceScale(getClose(d)) - priceScale(getOpen(d))
+              );
+              return candleHeight;
+            })
+            .attr('fill', (d) => (getOpen(d) > getClose(d) ? 'red' : 'green'));
 
-      candles
-        .append('line')
-        .attr('stroke', (d) => (getOpen(d) > getClose(d) ? 'red' : 'green'))
-        .attr('x1', candleWidth / 2)
-        .attr('x2', candleWidth / 2)
-        .attr('y1', (d) => {
-          const candleHeadWick =
-            priceScale(getHigh(d)) -
-            priceScale(Math.max(getOpen(d), getClose(d)));
-          return candleHeadWick;
-        })
-        .attr('y2', (d) => {
-          const candleTailWick =
-            priceScale(getLow(d)) -
-            priceScale(Math.max(getOpen(d), getClose(d)));
-          return candleTailWick;
-        });
+          candles
+            .append('line')
+            .attr('stroke', (d) => (getOpen(d) > getClose(d) ? 'red' : 'green'))
+            .attr('x1', candleWidth / 2)
+            .attr('x2', candleWidth / 2)
+            .attr('y1', (d) => {
+              const candleHeadWick =
+                priceScale(getHigh(d)) -
+                priceScale(Math.max(getOpen(d), getClose(d)));
+              return candleHeadWick;
+            })
+            .attr('y2', (d) => {
+              const candleTailWick =
+                priceScale(getLow(d)) -
+                priceScale(Math.max(getOpen(d), getClose(d)));
+              return candleTailWick;
+            });
+        },
+        (update) => {
+          const candles = update.attr('transform', (d) => {
+            const x = timeScale(getOpenTime(d)) - candleWidth / 2;
+            const y = priceScale(Math.max(getOpen(d), getClose(d)));
+
+            return `translate(${x}, ${y})`;
+          });
+
+          candles
+            .select('rect')
+            .transition()
+            .duration(500)
+            .attr('width', 5)
+            .attr('height', (d) => {
+              const candleHeight = Math.abs(
+                priceScale(getClose(d)) - priceScale(getOpen(d))
+              );
+              return candleHeight;
+            })
+            .attr('fill', (d) => (getOpen(d) > getClose(d) ? 'red' : 'green'));
+
+          candles
+            .select('line')
+            .transition()
+            .duration(500)
+            .attr('stroke', (d) => (getOpen(d) > getClose(d) ? 'red' : 'green'))
+            .attr('x1', candleWidth / 2)
+            .attr('x2', candleWidth / 2)
+            .attr('y1', (d) => {
+              const candleHeadWick =
+                priceScale(getHigh(d)) -
+                priceScale(Math.max(getOpen(d), getClose(d)));
+              return candleHeadWick;
+            })
+            .attr('y2', (d) => {
+              const candleTailWick =
+                priceScale(getLow(d)) -
+                priceScale(Math.max(getOpen(d), getClose(d)));
+              return candleTailWick;
+            });
+        },
+        (exit) => exit.remove()
+      );
     }
   }, [isGraphInitialized, originalData, metadata, svg, shouldRender]);
 
