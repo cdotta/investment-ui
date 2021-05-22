@@ -20,7 +20,7 @@ function Dashboard() {
     variables: {
       chartDataInput,
     },
-    pollInterval: isLive ? 10 * 1000 : null,
+    pollInterval: isLive ? 1 * 1000 : null,
   });
 
   const handleFilterChange = useCallback(

@@ -1,5 +1,5 @@
 export const DEFAULT_INTERVAL = '1h';
-export const DEFAULT_LIMIT = 48;
+export const DEFAULT_LIMIT = 24;
 
 export const VALID_INTERVALS = [
   '1m',

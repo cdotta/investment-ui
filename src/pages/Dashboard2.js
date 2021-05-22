@@ -16,12 +16,12 @@ function Dashboard2() {
     limit: DEFAULT_LIMIT,
   });
 
-  // const { loading, data } = useQuery(CHART_DATA_QUERY, {
-  //   variables: {
-  //     chartDataInput,
-  //   },
-  //   pollInterval: isLive ? 10 * 1000 : null,
-  // });
+  const { loading, data } = useQuery(CHART_DATA_QUERY, {
+    variables: {
+      chartDataInput,
+    },
+    pollInterval: isLive ? 10 * 1000 : null,
+  });
 
   const handleFilterChange = useCallback(
     (filters) => {
@@ -45,7 +45,7 @@ function Dashboard2() {
         onIsLiveChange={handleIsLiveChange}
       />
       {/* {loading && <div>Loading...</div>} */}
-      {<D3Candlestick data={[]} />}
+      {<D3Candlestick data={data?.chartData} />}
     </Box>
   );
 }

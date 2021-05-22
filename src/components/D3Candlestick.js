@@ -1,74 +1,97 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
-import { mockData } from './mockData';
+import { useChartMetadata } from '../hooks/useChartMetadata';
+import {
+  getOpenTime,
+  getOpen,
+  getClose,
+  getHigh,
+  getLow,
+  candleWidth,
+  margin,
+} from '../helpers/candlestickHelper';
 
 export function D3Candlestick({ data: originalData }) {
-  const containerRef = useRef(null);
+  const [isGraphInitialized, setIsGraphInitialized] = useState(false);
+  const [svg, setSvg] = useState(null);
+  const xAxisRef = useRef(null);
+  const yAxisRef = useRef(null);
+  const chartAreaRef = useRef(null);
+
+  const measuredRef = useCallback((node) => {
+    if (node !== null) {
+      setSvg(d3.select(node));
+    }
+  }, []);
+
+  const metadata = useChartMetadata(svg, originalData);
+  const shouldRender = useMemo(
+    () => svg && originalData && metadata,
+    [svg, originalData, metadata]
+  );
 
   useEffect(() => {
-    const data = originalData && mockData;
-    if (data && containerRef.current) {
-      console.log(data);
-      const getOpenTime = (d) => d.openTime;
-      const getOpen = (d) => +d.open;
-      const getClose = (d) => +d.close;
-      const svg = d3.select(containerRef.current);
-
-      const margin = { top: 50, bottom: 50, left: 20, right: 50 };
-      const containerWidth = +svg.attr('width');
-      const containerHeight = +svg.attr('height');
-      const width = containerWidth - margin.left - margin.right;
-      const height = containerHeight - margin.top - margin.bottom;
-
-      const maxPrice = d3.max(data, getOpen);
-      const minPrice = d3.min(data, getOpen);
-      const priceExtension = (maxPrice - minPrice) * 0.1;
-      const maxOpenTime = d3.max(data, getOpenTime);
-      const minOpenTime = d3.min(data, getOpenTime);
-      const timeExtension = (maxOpenTime - minOpenTime) * 0.1;
+    if (shouldRender && !isGraphInitialized) {
+      console.log('initializing chart');
+      setIsGraphInitialized(true);
+      const { width, height, timeScale, priceScale } = metadata;
 
       const g = svg
         .append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
+      chartAreaRef.current = g;
 
-      // Create scale
-      const timeScale = d3
-        .scaleTime()
-        .domain([minOpenTime - timeExtension, maxOpenTime + timeExtension])
-        .range([0, width]);
-      console.log(timeScale.domain());
-
-      const priceScale = d3
-        .scaleLinear()
-        .domain([minPrice - priceExtension, maxPrice + priceExtension])
-        .range([height, 0]);
-      console.log(priceScale.domain());
-
-      // Add scales to axis
       const xAxis = d3.axisBottom().scale(timeScale);
+      const yAxis = d3.axisRight().scale(priceScale).tickSize(-width);
 
-      const yAxis = d3.axisRight().scale(priceScale);
+      xAxisRef.current = g
+        .append('g')
+        .call(xAxis)
+        .attr('transform', `translate(0, ${height})`);
 
-      g.append('g').call(xAxis).attr('transform', `translate(0, ${height})`);
-      g.append('g').call(yAxis).attr('transform', `translate(${width}, 0)`);
+      yAxisRef.current = g
+        .append('g')
+        .call(yAxis)
+        .attr('transform', `translate(${width}, 0)`);
+    }
+  }, [isGraphInitialized, originalData, svg, metadata, shouldRender]);
 
-      const candles = g
+  useEffect(() => {
+    if (isGraphInitialized && shouldRender) {
+      console.log('updating chart');
+      const { width, timeScale, priceScale } = metadata;
+
+      xAxisRef.current
+        .transition()
+        .duration(1000)
+        .call(d3.axisBottom().scale(timeScale));
+
+      yAxisRef.current
+        .transition()
+        .duration(1000)
+        .call(d3.axisRight().scale(priceScale).tickSize(-width));
+
+      const temp = chartAreaRef.current
         .selectAll('.candle')
-        .data(data)
+        .data(originalData, (d) => getClose(d) - getOpen(d));
+
+      const candles = temp
         .enter()
         .append('g')
-        .classed('candle', true);
+        .classed('candle', true)
+        .merge(temp)
+        .attr('transform', (d) => {
+          const x = timeScale(getOpenTime(d)) - candleWidth / 2;
+          const y = priceScale(Math.max(getOpen(d), getClose(d)));
 
-      candles
-        .append('line')
-        .attr('stroke', 'black')
-        .attr('x0', 0)
-        .attr('x1', 0)
-        .attr('y0', 50)
-        .attr('y1', 50);
+          return `translate(${x}, ${y})`;
+        });
+
+      temp.exit().remove();
 
       candles
         .append('rect')
+        .merge(temp)
         .attr('width', 5)
         .attr('height', (d) => {
           const candleHeight = Math.abs(
@@ -76,20 +99,29 @@ export function D3Candlestick({ data: originalData }) {
           );
           return candleHeight;
         })
-        .attr('fill', (d) => (getOpen(d) > getClose(d) ? 'red' : 'green'))
-        .attr('y', (d) => {
-          const lowerY = priceScale(Math.min(getOpen(d), getClose(d)));
-          const candleHeight = Math.abs(
-            priceScale(getClose(d)) - priceScale(getOpen(d))
-          );
+        .attr('fill', (d) => (getOpen(d) > getClose(d) ? 'red' : 'green'));
 
-          return lowerY - candleHeight;
+      candles
+        .append('line')
+        .attr('stroke', (d) => (getOpen(d) > getClose(d) ? 'red' : 'green'))
+        .attr('x1', candleWidth / 2)
+        .attr('x2', candleWidth / 2)
+        .attr('y1', (d) => {
+          const candleHeadWick =
+            priceScale(getHigh(d)) -
+            priceScale(Math.max(getOpen(d), getClose(d)));
+          return candleHeadWick;
         })
-        .attr('x', (d) => timeScale(getOpenTime(d)) - 2.5);
+        .attr('y2', (d) => {
+          const candleTailWick =
+            priceScale(getLow(d)) -
+            priceScale(Math.max(getOpen(d), getClose(d)));
+          return candleTailWick;
+        });
     }
-  }, [originalData]);
+  }, [isGraphInitialized, originalData, metadata, svg, shouldRender]);
 
   return (
-    <svg className="container" width={700} height={500} ref={containerRef} />
+    <svg className="container" width={700} height={500} ref={measuredRef} />
   );
 }
