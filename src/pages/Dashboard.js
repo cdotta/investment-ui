@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { Box } from '@chakra-ui/layout';
 
 import { CHART_DATA_QUERY } from '../graphql/queries';
-import { CandlestickChart } from '../components/CandlestickChart';
+import { D3Candlestick } from '../components/D3Candlestick';
 import { ChartFilters } from '../components/ChartFilters';
 import { DEFAULT_INTERVAL, DEFAULT_LIMIT } from '../constants';
 
@@ -20,7 +20,7 @@ function Dashboard() {
     variables: {
       chartDataInput,
     },
-    pollInterval: isLive ? 1 * 1000 : null,
+    pollInterval: isLive ? 10 * 1000 : null,
   });
 
   const handleFilterChange = useCallback(
@@ -45,7 +45,7 @@ function Dashboard() {
         onIsLiveChange={handleIsLiveChange}
       />
       {loading && <div>Loading...</div>}
-      {!loading && <CandlestickChart data={data} />}
+      {<D3Candlestick data={data?.chartData} />}
     </Box>
   );
 }

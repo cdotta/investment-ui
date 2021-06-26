@@ -13,6 +13,7 @@ import {
 
 export function D3Candlestick({ data: originalData }) {
   const [isGraphInitialized, setIsGraphInitialized] = useState(false);
+  const [mousePosition, setMousePosition] = useState(null);
   const [svg, setSvg] = useState(null);
   const xAxisRef = useRef(null);
   const yAxisRef = useRef(null);
@@ -53,8 +54,44 @@ export function D3Candlestick({ data: originalData }) {
         .append('g')
         .call(yAxis)
         .attr('transform', `translate(${width}, 0)`);
+
+      g.append('rect')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('fill', 'none')
+        .attr('pointer-events', 'all')
+        .on('mousemove', (event, i) => {
+          const [x, y] = d3.pointer(event);
+          setMousePosition({ x, y });
+        })
+        .on('mouseleave', () => {
+          setMousePosition(null);
+        });
     }
   }, [isGraphInitialized, originalData, svg, metadata, shouldRender]);
+
+  useEffect(() => {
+    if (isGraphInitialized && shouldRender) {
+      let rulerSelection = chartAreaRef.current.select('.mouse-ruler');
+      if (mousePosition) {
+        const { width } = metadata;
+        if (rulerSelection.empty()) {
+          rulerSelection = chartAreaRef.current
+            .append('line')
+            .classed('mouse-ruler', true)
+            .attr('stroke', 'black')
+            .attr('pointer-events', 'none');
+        }
+        rulerSelection
+          .attr('x1', 0)
+          .attr('x2', width)
+          .attr('y1', mousePosition.y)
+          .attr('y2', mousePosition.y);
+      } else {
+        rulerSelection.remove();
+      }
+    }
+  }, [isGraphInitialized, shouldRender, mousePosition, metadata]);
 
   useEffect(() => {
     if (isGraphInitialized && shouldRender) {
@@ -71,15 +108,14 @@ export function D3Candlestick({ data: originalData }) {
         .duration(1000)
         .call(d3.axisRight().scale(priceScale).tickSize(-width));
 
-      const temp = chartAreaRef.current
+      const candlesSelection = chartAreaRef.current
         .selectAll('.candle')
         .data(originalData, (d, index) => {
           const id = `${getOpenTime(d)}[${index}]`;
-          console.log(id);
           return id;
         });
 
-      temp.join(
+      candlesSelection.join(
         (enter) => {
           const candles = enter
             .append('g')
@@ -166,6 +202,9 @@ export function D3Candlestick({ data: originalData }) {
   }, [isGraphInitialized, originalData, metadata, svg, shouldRender]);
 
   return (
-    <svg className="container" width={700} height={500} ref={measuredRef} />
+    <div>
+      <svg className="container" width={700} height={500} ref={measuredRef} />
+      <p>{JSON.stringify(mousePosition)}</p>
+    </div>
   );
 }
